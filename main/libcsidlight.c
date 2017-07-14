@@ -19,8 +19,6 @@ typedef unsigned char Uint8;
 #define SID_CHANNEL_AMOUNT 3
 #define MAX_FILENAME_LEN 512
 #define MAX_DATA_LEN 65536
-// #define MAX_PLAYLIST_LEN 1000000
-// #define MAX_PLAYLIST_ROWLEN 600
 #define PAL_FRAMERATE 50.06 //50.0443427 //50.1245419 //(C64_PAL_CPUCLK/63/312.5), selected carefully otherwise some ADSR-sensitive tunes may suffer more:
 #define DEFAULT_SAMPLERATE 44100.0         //(Soldier of Fortune, 2nd Reality, Alliance, X-tra energy, Jackal, Sanxion, Ultravox, Hard Track, Swing, Myth, LN3, etc.)
 #define CLOCK_RATIO_DEFAULT C64_PAL_CPUCLK/DEFAULT_SAMPLERATE  //(50.0567520: lowest framerate where Sanxion is fine, and highest where Myth is almost fine)
@@ -50,7 +48,6 @@ float ratecnt[9], cutoff_ratio_8580, cutoff_steepness_6581, cap_6581_reciprocal;
 //player-related variables:
 int SIDamount=1, SID_model[3]={8580,8580,8580}, requested_SID_model=-1, sampleratio;
 byte *filedata, *memory, timermode[0x20], SIDtitle[0x20], SIDauthor[0x20], SIDinfo[0x20];
-// char playlist[MAX_PLAYLIST_LEN]="", filename[MAX_FILENAME_LEN]="";
 int subtune=0, tunelength=-1, default_tunelength=300, minutes=-1, seconds=-1;
 unsigned int initaddr, playaddr, playaddf, SID_address[3]={0xD400,0,0};
 int samplerate = DEFAULT_SAMPLERATE;
@@ -76,103 +73,6 @@ void createCombinedWF(unsigned int* wfarray, float bitmul, float bitstrength, fl
 
 
 //----------------------------- MAIN thread ----------------------------
-
-
-// int main (int argc, char *argv[])
-// {
-//  char playlistmode=0; int playlistcnt=0, startrow=0; 
-//  long int playlistlen=0, playlistpos=0;
-//  int readata, strend, subtune_amount, preferred_SID_model[3]={8580.0,8580.0,8580.0}; 
-//  unsigned int i, datalen, offs, loadaddr;
-//  FILE *InputFile=NULL, *PlaylistFile=NULL;
-//  usleep(100000); //wait a bit to avoid keypress leftover (btw this might not happen in Linux)
-//  //open and process the file
-//  if (argc<2) { 
-//   printf("\ncSID-light by Hermit (Mihaly Horvath) (Year 2017). Usage: \n\n csidl <sid_file> [ subtune_number [SID_modelnumber [seconds]] ]"
-//   "\n\n Or playlist mode (filelist inputfile with not .sid extension): "
-//   "\n\n csidl <listfile> [ start_row [forced_SID_modelnumber [default_tunelength]] ]"
-//   "\n\n (Give '-' where you don't want to specify values, default length: 300 sec.)\n\n"); 
-//   return 1; 
-//  }
-//  if ( isExt(argv[1],".sid") || isExt(argv[1],".SID") ) {
-//   playlistmode=0; //single tune mode
-//   if (argc>=3) sscanf(argv[2],"%d",&subtune);  else subtune=0;
-//   if (argc>=4) sscanf(argv[3],"%d",&requested_SID_model);
-//   if (argc>=5) sscanf(argv[4],"%d",&tunelength);
-//   strcpy(filename,argv[1]);
-//  }
-//  else { //playlist mode
-//   playlistmode=1; playlistlen=playlistpos=0; 
-//   if (argc>=3) sscanf(argv[2],"%d",&startrow);
-//   if (argc>=4) sscanf(argv[3],"%d",&requested_SID_model);
-//   if (argc>=5) sscanf(argv[4],"%d",&default_tunelength);
-//   PlaylistFile = fopen(argv[1],"rb"); 
-//   if (PlaylistFile==NULL) {printf("Playlist-file not found.\n");return 1;}
-//   do { readata=fgetc(PlaylistFile); playlist[playlistlen++]=readata; } while (readata!=EOF && playlistlen<MAX_PLAYLIST_LEN); fclose(PlaylistFile);
-//  }
-//  printf("\n"); 
-//  samplerate = DEFAULT_SAMPLERATE; sampleratio = round(C64_PAL_CPUCLK/samplerate);
-//  if ( SDL_Init(SDL_INIT_AUDIO) < 0 ) {fprintf(stderr, "Couldn't initialize SDL: %s\n",SDL_GetError()); return(1); }
-//  SDL_AudioSpec soundspec; soundspec.freq=samplerate; soundspec.channels=1; soundspec.format=AUDIO_S16; soundspec.samples=16384; soundspec.userdata=NULL; soundspec.callback=play;
-//  if ( SDL_OpenAudio(&soundspec, NULL) < 0 ) { fprintf(stderr, "Couldn't open audio: %s\n", SDL_GetError()); return(2); }
-
-// openSID: //I know I know, goto is harmful to you! But my code is ugly anyway. :)
-//  if (playlistmode) {
-//   if (++playlistcnt>=startrow) { subtune=1;
-//    if (!sscanf(&playlist[playlistpos],"%s",&filename[0]) || strlen(filename)<4)
-//    { printf("\nReached end of playlist.\n\n"); SDL_PauseAudio(1);SDL_CloseAudio(); return 0; } 
-//    printf("\nTune %d: ",playlistcnt); playlistpos+=strlen(filename); 
-//    if (sscanf(&playlist[playlistpos],"%d:%d:%d",&minutes,&seconds,&subtune)>=2) tunelength=60*minutes+seconds; 
-//    else if (sscanf(&playlist[playlistpos],"%d",&seconds)) { minutes=0; tunelength=seconds; }
-//    else tunelength=default_tunelength;
-//   }
-//   for(i=0; i<MAX_PLAYLIST_ROWLEN; i++) 
-//    if(playlist[playlistpos+i]=='\n' || playlistpos+i==playlistlen-2) {playlistpos+=i+1; break;}
-//   if(playlistcnt<startrow) goto openSID;
-//  }
-//  InputFile = fopen(filename,"rb"); if (InputFile==NULL) 
-//  { printf("SID file %s not found.\n",filename); if(playlistmode) goto openSID; else return(1); }
-//  datalen=0; do { readata=fgetc(InputFile); filedata[datalen++]=readata; } while (readata!=EOF && datalen<MAX_DATA_LEN); 
-//  subtune--; if (subtune<0 || subtune>63) subtune=0;
-//  printf("%d bytes read (%s subtune %d)",--datalen,filename,subtune+1); fclose(InputFile);
-//  offs=filedata[7]; loadaddr=filedata[8]+filedata[9]? filedata[8]*256+filedata[9] : filedata[offs]+filedata[offs+1]*256; 
-//  printf("\nOffset: $%4.4X, Loadaddress: $%4.4X, Size: $%4.4X", offs, loadaddr, datalen-offs);
-//  if(tunelength!=-1) printf(", Playtime: %d seconds (%2.2d:%2.2d)", tunelength, tunelength/60, tunelength%60); printf("\nTimermodes: ");
-//  for (i=0; i<32; i++) { timermode[31-i] = (filedata[0x12+(i>>3)] & (byte)pow(2,7-i%8))?1:0; printf(" %1d",timermode[31-i]); }
-//  for(i=0;i<MAX_DATA_LEN;i++) memory[i]=0; for (i=offs+2; i<datalen; i++) { if (loadaddr+i-(offs+2)<MAX_DATA_LEN) memory[loadaddr+i-(offs+2)]=filedata[i]; } 
-//  strend=1; for(i=0; i<32; i++) { if(strend!=0) strend=SIDtitle[i]=filedata[0x16+i]; else strend=SIDtitle[i]=0; }  printf("\nTitle: %s    ",SIDtitle);
-//  strend=1; for(i=0; i<32; i++) { if(strend!=0) strend=SIDauthor[i]=filedata[0x36+i]; else strend=SIDauthor[i]=0; }  printf("Author: %s    ",SIDauthor); 
-//  strend=1; for(i=0; i<32; i++) { if(strend!=0) strend=SIDinfo[i]=filedata[0x56+i]; else strend=SIDinfo[i]=0; } printf("Info: %s",SIDinfo);
-//  initaddr=filedata[0xA]+filedata[0xB]? filedata[0xA]*256+filedata[0xB] : loadaddr; playaddr=playaddf=filedata[0xC]*256+filedata[0xD]; 
-//  printf("\nInit:$%4.4X,Play:$%4.4X, ",initaddr,playaddr);
-//  subtune_amount=filedata[0xF]; preferred_SID_model[0] = (filedata[0x77]&0x30)>=0x20? 8580 : 6581; 
-//  printf("Subtunes:%d , preferred SID-model:%d", subtune_amount, preferred_SID_model[0]);
-//  preferred_SID_model[1] = (filedata[0x77]&0xC0)>=0x80 ? 8580 : 6581; preferred_SID_model[2] = (filedata[0x76]&3)>=2 ? 8580 : 6581; 
-//  SID_address[1] = filedata[0x7A]>=0x42 && (filedata[0x7A]<0x80 || filedata[0x7A]>=0xE0) ? 0xD000+filedata[0x7A]*16 : 0;
-//  SID_address[2] = filedata[0x7B]>=0x42 && (filedata[0x7B]<0x80 || filedata[0x7B]>=0xE0) ? 0xD000+filedata[0x7B]*16 : 0;
-//  SIDamount=1+(SID_address[1]>0)+(SID_address[2]>0); if(SIDamount>=2) printf("(SID1), %d(SID2:%4.4X)",preferred_SID_model[1],SID_address[1]); 
-//  if(SIDamount==3) printf(", %d(SID3:%4.4X)",preferred_SID_model[2],SID_address[2]);
-//  if (requested_SID_model!=-1) printf(" (requested:%d)",requested_SID_model); printf("\n");
-//  for (i=0;i<SIDamount;i++) {
-//   if (requested_SID_model==8580 || requested_SID_model==6581) SID_model[i] = requested_SID_model;
-//   else SID_model[i] = preferred_SID_model[i];
-//  }
-//  OUTPUT_SCALEDOWN = SID_CHANNEL_AMOUNT * 16 + 26; 
-//  if (SIDamount==2) OUTPUT_SCALEDOWN /= 0.6;
-//  else if (SIDamount>=3) OUTPUT_SCALEDOWN /= 0.4;
-//  cSID_init(samplerate); init(subtune);  
-//  SDL_PauseAudio(0); 
-//  fflush(stdin); if(tunelength!=-1) sleep(tunelength); else { printf("Press Enter to abort playback...\n"); getchar(); }
-
-//  SDL_PauseAudio(1);  if(playlistmode) goto openSID;
-//  SDL_CloseAudio(); 
-//  return 0;
-// }
-
-// char isExt(char *filename, char* ext) { //check file extension match
-//  char* LastDotPos = strrchr(filename,'.'); if (LastDotPos == NULL) return 0;
-//  if (!strcmp(LastDotPos,ext)) return 1; else return 0;
-// }
 
 
 void init (byte subt)
@@ -359,7 +259,6 @@ void play(void* userdata, Uint8 *stream, int len ) //called by SDL at samplerate
 // //----------------------------- SID emulation -----------------------------------------
 
 // Arrays to support the emulation:
-// unsigned int *TriSaw_8580, *PulseSaw_8580, *PulseTriSaw_8580;
 #include "precalc.inc"
 
 #define PERIOD0 CLOCK_RATIO_DEFAULT //max(round(clock_ratio),9)
@@ -689,17 +588,7 @@ const char *libcsid_gettitle() {
 }
 
 void libcsid_init(int _samplerate, int _sidmodel) {
-  printf("yy1\n");
-
   memory = (byte *)malloc(MAX_DATA_LEN);
-
-  // pri ntf("yy2\n");
-
-  // TriSaw_8580 = (unsigned int *)malloc(4096 * 2);
-  // PulseSaw_8580 = (unsigned int *)malloc(4096 * 2);
-  // PulseTriSaw_8580 = (unsigned int *)malloc(4096 * 2);
-
-  printf("yy3\n");
 
   samplerate = _samplerate;
   sampleratio = round(C64_PAL_CPUCLK / samplerate);
@@ -710,8 +599,6 @@ int libcsid_load(unsigned char *_buffer, int _bufferlen, int _subtune) {
   int readata, strend, subtune_amount, preferred_SID_model[3] = {8580.0, 8580.0, 8580.0};
   unsigned int i, datalen, offs, loadaddr;
 
-  printf("xx1\n");
-
   subtune = _subtune;
 
   unsigned char *filedata = _buffer;
@@ -720,8 +607,6 @@ int libcsid_load(unsigned char *_buffer, int _bufferlen, int _subtune) {
   offs = filedata[7];
   loadaddr = filedata[8] + filedata[9] ? filedata[8] * 256 + filedata[9] : filedata[offs] + filedata[offs + 1] * 256;
   printf("\nOffset: $%4.4X, Loadaddress: $%4.4X \nTimermodes:", offs, loadaddr);
-
-  printf("xx2\n");
 
   for (i = 0; i < 32; i++) {
     timermode[31 - i] = (filedata[0x12 + (i >> 3)] & (byte)pow(2, 7 - i % 8)) ? 1 : 0;
@@ -737,8 +622,6 @@ int libcsid_load(unsigned char *_buffer, int _bufferlen, int _subtune) {
       memory[loadaddr + i - (offs + 2)] = filedata[i];
     }
   }
-
-  printf("xx3\n");
 
   strend = 1;
   for (i = 0; i < 32; i++) {
@@ -767,8 +650,6 @@ int libcsid_load(unsigned char *_buffer, int _bufferlen, int _subtune) {
     }
   }
 
-  printf("xx4\n");
-
   initaddr=filedata[0xA]+filedata[0xB]? filedata[0xA]*256+filedata[0xB] : loadaddr; playaddr=playaddf=filedata[0xC]*256+filedata[0xD]; printf("\nInit:$%4.4X,Play:$%4.4X, ",initaddr,playaddr);
   subtune_amount=filedata[0xF];
   preferred_SID_model[0] = (filedata[0x77]&0x30)>=0x20? 8580 : 6581;
@@ -780,15 +661,9 @@ int libcsid_load(unsigned char *_buffer, int _bufferlen, int _subtune) {
   SID_address[1] = filedata[0x7A]>=0x42 && (filedata[0x7A]<0x80 || filedata[0x7A]>=0xE0) ? 0xD000+filedata[0x7A]*16 : 0;
   SID_address[2] = filedata[0x7B]>=0x42 && (filedata[0x7B]<0x80 || filedata[0x7B]>=0xE0) ? 0xD000+filedata[0x7B]*16 : 0;
 
-  printf("xx5\n");
-
-
   SIDamount=1+(SID_address[1]>0)+(SID_address[2]>0); if(SIDamount>=2) printf("(SID1), %d(SID2:%4.4X)",preferred_SID_model[1],SID_address[1]); 
   if(SIDamount==3) printf(", %d(SID3:%4.4X)",preferred_SID_model[2],SID_address[2]);
   if (requested_SID_model!=-1) printf(" (requested:%d)",requested_SID_model); printf("\n");
-
-  printf("xx6\n");
-
 
   for (i=0;i<SIDamount;i++) {
     if (requested_SID_model==8580 || requested_SID_model==6581) SID_model[i] = requested_SID_model;
@@ -802,15 +677,8 @@ int libcsid_load(unsigned char *_buffer, int _bufferlen, int _subtune) {
     OUTPUT_SCALEDOWN /= 0.4;
   }
 
-  printf("xx7\n");
-
   cSID_init(samplerate);
-
-  printf("xx8\n");
-
   init(subtune);
-
-  printf("xx9\n");
 
   return 0;
 }
